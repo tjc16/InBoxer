@@ -77,6 +77,25 @@ npm start
 
 Click **Try the live demo** for a full, guided walkthrough with no setup.
 
+### Enabling donations (Stripe)
+
+The Donate button uses [Stripe Checkout](https://stripe.com/docs/payments/checkout). To turn it on:
+
+1. Create a Stripe account and grab your **secret key** (`sk_test_…` for testing, `sk_live_…` for production).
+2. Set it in the environment:
+
+   ```bash
+   # local: create a .env (already gitignored) or export inline
+   STRIPE_SECRET_KEY=sk_test_xxx npm start
+   ```
+
+   Optional: `DONATION_CURRENCY` (default `usd`), `PUBLIC_URL` (forces the success/cancel
+   redirect origin; otherwise it's inferred from the request).
+3. On **Vercel**, add `STRIPE_SECRET_KEY` under *Settings → Environment Variables* and redeploy.
+
+Use Stripe's test card `4242 4242 4242 4242` (any future expiry / any CVC) to try the full
+flow. Without a key, the button simply reports that payments aren't configured.
+
 ## Getting an app password
 
 Gmail, Outlook, and Yahoo block your normal password over IMAP. With 2-factor
@@ -102,7 +121,7 @@ Node.js · Express · `imap-simple` · `mailparser`. The categoriser and demo da
 generator are self-contained modules ([`categorize.js`](categorize.js),
 [`demo-data.js`](demo-data.js)). The front-end is dependency-free vanilla JS.
 
-## Notes & limits (MVP)
+## Notes & limits (Beta)
 
 - Folders are created under a parent (default `InBoxer/`). On Gmail, IMAP folders
   appear as labels. The hierarchy delimiter is detected from the server.
@@ -110,7 +129,10 @@ generator are self-contained modules ([`categorize.js`](categorize.js),
 - **Mass unsubscribe** performs real RFC-8058 one-click HTTP requests and SMTP
   `mailto:` sends server-side. Some senders only honour an interactive confirmation
   page; those are reported back so you can finish them manually.
-- The **Donate** button is a UI skeleton — Stripe / payment gateway to be added.
+- The **Donate** button uses Stripe Checkout. Set `STRIPE_SECRET_KEY` (and optionally
+  `DONATION_CURRENCY`, default `usd`) in the environment to enable it; without a key the
+  button returns a friendly "not configured" message. The amount is validated server-side
+  ($1–$999). See **Enabling donations (Stripe)** above for setup.
 - Categorisation reads headers + subject (not full bodies) — fast and private,
   but very generic subjects may land in "Other" (kept in Inbox).
 - Demo mode performs all actions in the browser only; nothing leaves your machine.

@@ -158,7 +158,16 @@ function buildUnsub(emails) {
 function buildPlan(emails) {
   planFolders = [];
   let fid = 0;
-  const mk = (segments, uids, dispKey) => { const f = { id: fid++, segments, uids, count: uids.length, dispKey }; planFolders.push(f); return f; };
+  // meta carries the fields the uncheck logic reads:
+  //   kind: 'leaf' (own category) | 'roll' (a group/disposition "other" bucket)
+  //         | 'misc' (File root) | 'unsorted'
+  //   groupKey/groupName: set for File leaves & File "(other)" buckets
+  //   rollupSegments: where a *leaf's* emails go when it's unticked (its parent
+  //         "(other)" folder). Absent on non-leaf folders, which fall to Inbox.
+  const mk = (segments, uids, dispKey, meta) => {
+    const f = { id: fid++, segments, uids, count: uids.length, dispKey, kind: 'leaf', groupKey: null, ...(meta || {}) };
+    planFolders.push(f); return f;
+  };
   const rows = [];           // render rows
   const byDisp = { file: [], hold: [], cleanup: [], unsorted: [] };
   for (const e of emails) (byDisp[e.dispKey] || byDisp.unsorted).push(e);
@@ -168,7 +177,7 @@ function buildPlan(emails) {
     rows.push({ type: 'dispo', dispKey: 'file', icon: '📂', name: 'File', total: byDisp.file.length });
     const groups = {};
     for (const e of byDisp.file) {
-      const g = (groups[e.groupKey] = groups[e.groupKey] || { name: e.groupName, icon: e.groupIcon, order: e.groupOrder, cats: {} });
+      const g = (groups[e.groupKey] = groups[e.groupKey] || { key: e.groupKey, name: e.groupName, icon: e.groupIcon, order: e.groupOrder, cats: {} });
       const c = (g.cats[e.categoryKey] = g.cats[e.categoryKey] || { name: e.categoryName, icon: e.categoryIcon, order: e.categoryOrder, uids: [] });
       c.uids.push(e.uid);
     }
@@ -177,26 +186,27 @@ function buildPlan(emails) {
       const cats = Object.values(g.cats);
       const groupTotal = cats.reduce((n, c) => n + c.uids.length, 0);
       if (groupTotal < GROUP_MIN) { cats.forEach((c) => fileRoot.push(...c.uids)); return; }
-      rows.push({ type: 'group', dispKey: 'file', icon: g.icon, name: g.name, total: groupTotal });
+      rows.push({ type: 'group', dispKey: 'file', groupKey: g.key, icon: g.icon, name: g.name, total: groupTotal });
       const rolled = [];
       cats.sort((a, b) => a.order - b.order).forEach((c) => {
         if (c.uids.length >= CAT_MIN) {
-          const f = mk(['File', g.name, c.name], c.uids, 'file');
+          const f = mk(['File', g.name, c.name], c.uids, 'file', { kind: 'leaf', groupKey: g.key, groupName: g.name, rollupSegments: ['File', g.name] });
           rows.push({ type: 'folder', id: f.id, icon: c.icon, label: c.name, count: c.uids.length, indent: 2, dispKey: 'file' });
         } else rolled.push(...c.uids);
       });
       if (rolled.length) {
-        const f = mk(['File', g.name], rolled, 'file');
+        const f = mk(['File', g.name], rolled, 'file', { kind: 'roll', groupKey: g.key, groupName: g.name });
         rows.push({ type: 'folder', id: f.id, icon: '📁', label: `${g.name} (other)`, count: rolled.length, indent: 2, dispKey: 'file' });
       }
     });
     if (fileRoot.length) {
-      const f = mk(['File'], fileRoot, 'file');
+      const f = mk(['File'], fileRoot, 'file', { kind: 'misc' });
       rows.push({ type: 'folder', id: f.id, icon: '📁', label: 'File (misc)', count: fileRoot.length, indent: 1, dispKey: 'file' });
     }
   }
 
-  // ---- HOLD / CLEAN UP: Disposition → Category ----
+  // ---- HOLD / CLEAN UP: Disposition → Category (the disposition plays the
+  //      "group" role here, so a leaf rolls up into "<Disposition> (other)") ----
   [['hold', '⏳', 'Hold'], ['cleanup', '🧹', 'Clean up']].forEach(([dk, icon, name]) => {
     const list = byDisp[dk];
     if (!list.length) return;
@@ -209,12 +219,12 @@ function buildPlan(emails) {
     const rootUids = [];
     Object.values(cats).sort((a, b) => a.order - b.order).forEach((c) => {
       if (c.uids.length >= CAT_MIN) {
-        const f = mk([name, c.name], c.uids, dk);
+        const f = mk([name, c.name], c.uids, dk, { kind: 'leaf', rollupSegments: [name] });
         rows.push({ type: 'folder', id: f.id, icon: c.icon, label: c.name, count: c.uids.length, indent: 1, dispKey: dk });
       } else rootUids.push(...c.uids);
     });
     if (rootUids.length) {
-      const f = mk([name], rootUids, dk);
+      const f = mk([name], rootUids, dk, { kind: 'roll' });
       rows.push({ type: 'folder', id: f.id, icon: icon, label: `${name} (other)`, count: rootUids.length, indent: 1, dispKey: dk });
     }
   });
@@ -222,11 +232,42 @@ function buildPlan(emails) {
   // ---- UNSORTED: its own folder, so confirming leaves the Inbox empty ----
   if (byDisp.unsorted.length) {
     rows.push({ type: 'dispo', dispKey: 'unsorted', icon: '❓', name: 'Unsorted', total: byDisp.unsorted.length });
-    const f = mk(['Unsorted'], byDisp.unsorted.map((e) => e.uid), 'unsorted');
+    const f = mk(['Unsorted'], byDisp.unsorted.map((e) => e.uid), 'unsorted', { kind: 'unsorted' });
     rows.push({ type: 'folder', id: f.id, icon: '❓', label: 'Unidentified', count: f.count, indent: 1, dispKey: 'unsorted' });
   }
   unsortedInfo = { count: byDisp.unsorted.length };
   return rows;
+}
+
+// Re-derive the folders-to-create from the live tick state. A leaf that's been
+// unticked rolls its emails up into its parent group's "(other)" folder; a
+// group or disposition that's been unticked drops its emails back to the Inbox
+// (they're simply omitted). Folders are merged by path so a rolled-up leaf and
+// an existing "(other)" bucket combine into one move.
+function computeApplyPlan() {
+  const dispChecked = {};
+  document.querySelectorAll('.dispoToggle').forEach((cb) => { dispChecked[cb.dataset.disp] = cb.checked; });
+  const groupChecked = {};
+  document.querySelectorAll('.groupToggle').forEach((cb) => { groupChecked[cb.dataset.group] = cb.checked; });
+  const leafChecked = {};
+  document.querySelectorAll('.folderToggle').forEach((cb) => { leafChecked[cb.dataset.fid] = cb.checked; });
+
+  const byPath = new Map();
+  const emit = (segments, uids) => {
+    const key = segments.join('/');
+    const cur = byPath.get(key) || { segments, uids: [] };
+    cur.uids.push(...uids);
+    byPath.set(key, cur);
+  };
+  for (const f of planFolders) {
+    if (dispChecked[f.dispKey] === false) continue;                  // disposition → Inbox
+    if (f.groupKey && groupChecked[f.groupKey] === false) continue;  // group → Inbox
+    const checked = leafChecked[f.id] !== false;
+    if (f.kind === 'leaf' && !checked && f.rollupSegments) emit(f.rollupSegments, f.uids); // roll up a level
+    else if (checked) emit(f.segments, f.uids);                      // file as proposed
+    // a non-leaf bucket (roll/misc/unsorted) that's been unticked → Inbox
+  }
+  return [...byPath.values()].filter((g) => g.uids.length);
 }
 
 // ---------------------------------------------------------------------------
@@ -252,8 +293,13 @@ function renderSummaryInto(id, s) {
     <div class="stat"><div class="num">${s.unsub.toLocaleString()}</div><div class="lbl">Can unsubscribe</div></div>`;
 }
 
+const DISPO_LABEL = { file: 'File', hold: 'Hold', cleanup: 'Clean up', unsorted: 'Unsorted' };
+const pfById = {};   // id → planFolder, rebuilt on every renderTree
+
 function renderTree() {
   const rows = buildPlan(allEmails);
+  Object.keys(pfById).forEach((k) => delete pfById[k]);
+  planFolders.forEach((f) => { pfById[f.id] = f; });
   // The dashboard mailbox browses the proposed structure until apply narrows it.
   navState = { parent: ($('parentName').value || 'InBoxer').trim(), folders: planFolders.map((f) => ({ segments: f.segments, uids: f.uids })), applied: false };
   const html = rows.map((r) => {
@@ -264,23 +310,111 @@ function renderTree() {
           <span class="tr-count">${r.total.toLocaleString()}</span></div>`;
     }
     if (r.type === 'group') {
-      return `<div class="tr-group"><span class="tg-ic">${r.icon}</span> ${escapeHtml(r.name)}
+      return `<div class="tr-group" data-group="${r.groupKey}">
+          <label class="tg-label"><input type="checkbox" class="groupToggle" data-group="${r.groupKey}" data-disp="${r.dispKey}" checked />
+          <span class="tg-ic">${r.icon}</span> ${escapeHtml(r.name)}</label>
           <span class="tr-count muted">${r.total.toLocaleString()}</span></div>`;
     }
-    return `<div class="tr-folder ind${r.indent}" data-disp="${r.dispKey}">
-        <label><input type="checkbox" class="folderToggle" data-fid="${r.id}" data-disp="${r.dispKey}" checked />
+    const f = pfById[r.id];
+    const rollLabel = f.kind === 'leaf' && f.rollupSegments ? `${f.rollupSegments[f.rollupSegments.length - 1]} (other)` : '';
+    return `<div class="tr-folder ind${r.indent}" data-disp="${r.dispKey}" data-fid="${r.id}">
+        <label><input type="checkbox" class="folderToggle" data-fid="${r.id}" data-disp="${r.dispKey}" data-kind="${f.kind}"${f.groupKey ? ` data-group="${f.groupKey}"` : ''} checked />
         <span class="tf-ic">${r.icon}</span> ${escapeHtml(r.label)}</label>
+        <span class="tr-note" data-roll="${escapeHtml(rollLabel)}"></span>
         <span class="tr-count">${r.count.toLocaleString()}</span></div>`;
   }).join('');
   $('folderTree').innerHTML = html || '<p class="muted">Nothing to file — your inbox is already tidy! 🎉</p>';
-  $('folderHint').textContent = `${planFolders.length} folders proposed`;
-  $('unsortedNote').innerHTML = unsortedInfo.count
-    ? `✅ Every email gets a home — including <b>${unsortedInfo.count.toLocaleString()}</b> unidentified ones in their own <b>Unsorted</b> folder. Your Inbox will be left empty.`
-    : '✅ Every email gets a home — your Inbox will be left empty.';
+  refreshFolderHint();
 
-  $('folderTree').querySelectorAll('.dispoToggle').forEach((cb) => cb.addEventListener('change', () => {
-    $('folderTree').querySelectorAll(`.folderToggle[data-disp="${cb.dataset.disp}"]`).forEach((f) => { f.checked = cb.checked; });
+  const tree = $('folderTree');
+
+  // Disposition master — ticking restores the whole disposition; unticking
+  // sends every email in it back to the Inbox, so confirm first.
+  tree.querySelectorAll('.dispoToggle').forEach((cb) => cb.addEventListener('change', async () => {
+    const disp = cb.dataset.disp;
+    if (!cb.checked) {
+      const n = planCount((f) => f.dispKey === disp);
+      const ok = await confirmDialog({
+        title: `Leave ${n.toLocaleString()} email${n === 1 ? '' : 's'} in your Inbox?`,
+        body: `Unticking <b>${DISPO_LABEL[disp] || disp}</b> means none of these get filed — they’ll stay in your Inbox instead of being sorted.`,
+        confirmText: 'Yes, keep in Inbox', cancelText: 'Keep filing them',
+      });
+      if (!ok) { cb.checked = true; return; }
+    }
+    tree.querySelectorAll(`.groupToggle[data-disp="${disp}"]`).forEach((g) => { g.checked = cb.checked; setGroupDisabled(g.dataset.group, !cb.checked); });
+    tree.querySelectorAll(`.folderToggle[data-disp="${disp}"]`).forEach((fcb) => { fcb.checked = cb.checked; fcb.disabled = !cb.checked; });
+    syncLeafNotes(); refreshFolderHint();
   }));
+
+  // Group — unticking a whole group (e.g. Finance) drops it to the Inbox; warn.
+  tree.querySelectorAll('.groupToggle').forEach((cb) => cb.addEventListener('change', async () => {
+    const gk = cb.dataset.group;
+    if (!cb.checked) {
+      const n = planCount((f) => f.groupKey === gk);
+      const name = (planFolders.find((f) => f.groupKey === gk) || {}).groupName || 'this group';
+      const ok = await confirmDialog({
+        title: `Leave ${n.toLocaleString()} email${n === 1 ? '' : 's'} in your Inbox?`,
+        body: `Unticking the whole <b>${escapeHtml(name)}</b> group means these emails won’t be filed — they’ll stay in your Inbox. To file them under a single <b>${escapeHtml(name)}</b> folder instead, untick its sub-folders rather than the group.`,
+        confirmText: 'Yes, keep in Inbox', cancelText: 'Keep the group',
+      });
+      if (!ok) { cb.checked = true; return; }
+    }
+    setGroupDisabled(gk, !cb.checked);
+    syncLeafNotes(); refreshFolderHint();
+  }));
+
+  // Leaf — a category folder. Unticking an ordinary leaf rolls it up into its
+  // group’s "(other)" folder (silent). Unticking a terminal bucket
+  // ("(other)" / misc / Unsorted) has nowhere to roll, so it goes to the Inbox
+  // and we confirm.
+  tree.querySelectorAll('.folderToggle').forEach((cb) => cb.addEventListener('change', async () => {
+    const f = pfById[cb.dataset.fid];
+    const rollsUp = f.kind === 'leaf' && f.rollupSegments;
+    if (!cb.checked && !rollsUp) {
+      const dest = DISPO_LABEL[f.dispKey] || 'your Inbox';
+      const ok = await confirmDialog({
+        title: `Leave ${f.count.toLocaleString()} email${f.count === 1 ? '' : 's'} in your Inbox?`,
+        body: `These don’t belong to a sub-folder, so unticking them keeps them in your Inbox rather than filing them under <b>${escapeHtml(dest)}</b>.`,
+        confirmText: 'Yes, keep in Inbox', cancelText: 'Keep filing them',
+      });
+      if (!ok) { cb.checked = true; return; }
+    }
+    syncLeafNotes(); refreshFolderHint();
+  }));
+}
+
+// Show "→ Group (other)" on each leaf that's currently unticked but rolling up.
+function syncLeafNotes() {
+  $('folderTree').querySelectorAll('.tr-folder').forEach((row) => {
+    const cb = row.querySelector('.folderToggle');
+    const note = row.querySelector('.tr-note');
+    const rolling = cb && !cb.checked && !cb.disabled && note && note.dataset.roll;
+    row.classList.toggle('rolled', !!rolling);
+    if (note) note.textContent = rolling ? `→ ${note.dataset.roll}` : '';
+  });
+}
+
+// Enable/disable & dim all of a group's leaf rows when the group is toggled off.
+function setGroupDisabled(groupKey, disabled) {
+  $('folderTree').querySelectorAll(`.folderToggle[data-group="${groupKey}"]`).forEach((fcb) => {
+    fcb.disabled = disabled;
+    fcb.closest('.tr-folder').classList.toggle('group-off', disabled);
+  });
+}
+
+const planCount = (pred) => planFolders.filter(pred).reduce((n, f) => n + f.uids.length, 0);
+
+function refreshFolderHint() {
+  const plan = computeApplyPlan();
+  const folders = plan.length;
+  const filed = plan.reduce((n, g) => n + g.uids.length, 0);
+  const toInbox = allEmails.length - filed;
+  $('folderHint').textContent = `${folders} folder${folders === 1 ? '' : 's'} · ${filed.toLocaleString()} filed`;
+  $('unsortedNote').innerHTML = toInbox > 0
+    ? `📥 <b>${toInbox.toLocaleString()}</b> email${toInbox === 1 ? '' : 's'} will stay in your Inbox (unticked above); the rest are filed.`
+    : (unsortedInfo.count
+      ? `✅ Every email gets a home — including <b>${unsortedInfo.count.toLocaleString()}</b> unidentified ones in their own <b>Unsorted</b> folder. Your Inbox will be left empty.`
+      : '✅ Every email gets a home — your Inbox will be left empty.');
 }
 
 function renderUnsub() {
@@ -362,8 +496,7 @@ $('massUnsub').addEventListener('click', async () => {
 
 $('confirmApply').addEventListener('click', async () => {
   const parent = ($('parentName').value || 'InBoxer').trim();
-  const checked = new Set([...document.querySelectorAll('.folderToggle:checked')].map((cb) => Number(cb.dataset.fid)));
-  const groups = planFolders.filter((f) => checked.has(f.id)).map((f) => ({ segments: f.segments, uids: f.uids }));
+  const groups = computeApplyPlan();
   const totalToMove = groups.reduce((n, g) => n + g.uids.length, 0);
   if (!totalToMove) return toast('Nothing selected to move. Tick at least one folder.', true);
 
@@ -385,9 +518,13 @@ $('confirmApply').addEventListener('click', async () => {
     navState = { parent, folders: groups.map((g) => ({ segments: g.segments, uids: g.uids })), applied: true };
     setTimeout(() => {
       hide('scanOverlay');
+      const left = allEmails.length - totalToMove;
+      const inboxNote = left > 0
+        ? `<b>${left.toLocaleString()}</b> email${left === 1 ? '' : 's'} you unticked stay in your Inbox.`
+        : 'your Inbox is now empty. 🎉';
       $('successTitle').textContent = isDemo ? 'Here’s what InBoxer would do' : 'Your inbox is organised!';
       $('successBody').innerHTML = `Created <b>${result ? result.folders : groups.length}</b> folders under <b>${escapeHtml(parent)}</b>
-        and filed <b>${totalToMove.toLocaleString()}</b> emails — your Inbox is now empty. 🎉 Clean-up mail is staged for you to
+        and filed <b>${totalToMove.toLocaleString()}</b> emails — ${inboxNote} Clean-up mail is staged for you to
         review and delete; InBoxer never deletes anything.${isDemo ? '<br><br><i>This is demo data — nothing was changed.</i>' : ''}`;
       show('successModal');
     }, 350);
@@ -405,7 +542,13 @@ function enterDashboard() {
   ['landing', 'review'].forEach(hide); show('app');
   $('accountLabel').textContent = creds.email;
   $('demoBadge').classList.toggle('hidden', !isDemo);
-  const pin = $('parentName'); if (pin && !navState.applied) navState.parent = (pin.value || 'InBoxer').trim();
+  const pin = $('parentName');
+  if (pin && !navState.applied) {
+    // Browsing before applying: reflect the live tick state (rolled-up leaves,
+    // groups left in the Inbox) rather than the untouched proposal.
+    navState.parent = (pin.value || 'InBoxer').trim();
+    if (document.querySelector('.folderToggle')) navState.folders = computeApplyPlan();
+  }
   computeMailbox();
   activeFolder = 'all';
   renderSummaryInto('summary', computeStats(allEmails));
@@ -421,7 +564,7 @@ function computeMailbox() {
     const leaf = [navState.parent, ...f.segments].join('/');
     for (const uid of f.uids) folderKeyByUid[uid] = leaf;
   }
-  nameIcon = { [navState.parent]: '📬' };
+  nameIcon = { [navState.parent]: '🥊' };
   for (const e of allEmails) {
     nameIcon[e.dispName] = e.dispIcon;
     if (e.groupName) nameIcon[e.groupName] = e.groupIcon;
@@ -555,7 +698,37 @@ function openDonate() { selectTier(5); show('donateModal'); }
 function selectTier(amt) { donateAmt = amt; document.querySelectorAll('.tier').forEach((t) => t.classList.toggle('selected', Number(t.dataset.amt) === amt)); $('customAmt').value = ''; }
 document.querySelectorAll('.tier').forEach((t) => t.addEventListener('click', () => selectTier(Number(t.dataset.amt))));
 $('customAmt').addEventListener('input', (e) => { document.querySelectorAll('.tier').forEach((t) => t.classList.remove('selected')); donateAmt = Number(e.target.value) || 0; });
-$('donateGo').addEventListener('click', () => { hide('donateModal'); toast(`Thank you! 💜 Payments (Stripe) are coming soon — $${donateAmt || 5} was not charged.`); });
+$('donateGo').addEventListener('click', async () => {
+  const amt = Math.floor(donateAmt);
+  if (!amt || amt < 1) { toast('Please choose an amount of at least $1.', true); return; }
+  const btn = $('donateGo');
+  btn.disabled = true; const label = btn.textContent; btn.textContent = 'Redirecting…';
+  try {
+    const res = await fetch('/api/create-checkout-session', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount: amt }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.url) throw new Error(data.error || 'Could not start the payment.');
+    window.location = data.url;            // hand off to Stripe's hosted checkout
+  } catch (e) {
+    btn.disabled = false; btn.textContent = label;
+    toast(e.message, true);
+  }
+});
+
+// After Stripe redirects back, show a thank-you (or a gentle note on cancel).
+(function handleDonationReturn() {
+  const params = new URLSearchParams(location.search);
+  const status = params.get('donation');
+  if (!status) return;
+  if (status === 'success') toast('Thank you for supporting InBoxer! 💜');
+  else if (status === 'cancelled') toast('Payment cancelled — no charge was made.');
+  // Clean the URL after load — doing it mid-parse gets clobbered by the
+  // navigation still committing the address bar.
+  const clean = () => history.replaceState({}, '', location.pathname);
+  if (document.readyState === 'complete') clean();
+  else window.addEventListener('load', clean);
+})();
 
 // ---------------------------------------------------------------------------
 // Guided tour (spotlight) — runs on the review screen
@@ -623,4 +796,33 @@ let toastTimer;
 function toast(msg, isError) {
   const t = $('toast'); t.textContent = msg; t.className = 'toast' + (isError ? ' error' : '');
   clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add('hidden'), 4200);
+}
+
+// Promise-based confirm dialog. Resolves true on confirm, false on cancel /
+// backdrop / Esc. Body is treated as trusted HTML (callers escape user data).
+function confirmDialog({ title, body, confirmText = 'Confirm', cancelText = 'Cancel' }) {
+  return new Promise((resolve) => {
+    $('confirmTitle').textContent = title;
+    $('confirmBody').innerHTML = body;
+    $('confirmOk').textContent = confirmText;
+    $('confirmCancel').textContent = cancelText;
+    const overlay = $('confirmModal');
+    show('confirmModal');
+    const done = (val) => {
+      hide('confirmModal');
+      $('confirmOk').removeEventListener('click', onOk);
+      $('confirmCancel').removeEventListener('click', onCancel);
+      overlay.removeEventListener('click', onBackdrop);
+      document.removeEventListener('keydown', onKey);
+      resolve(val);
+    };
+    const onOk = () => done(true);
+    const onCancel = () => done(false);
+    const onBackdrop = (e) => { if (e.target === overlay) done(false); };
+    const onKey = (e) => { if (e.key === 'Escape') done(false); };
+    $('confirmOk').addEventListener('click', onOk);
+    $('confirmCancel').addEventListener('click', onCancel);
+    overlay.addEventListener('click', onBackdrop);
+    document.addEventListener('keydown', onKey);
+  });
 }

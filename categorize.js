@@ -216,121 +216,199 @@ const KW = {
 };
 
 // ---------------------------------------------------------------------------
-// Core classifier — returns a category key + reasons + confidence
+// Scored rule engine
 // ---------------------------------------------------------------------------
+//
+// Every rule contributes weighted "votes" toward one or more categories rather
+// than returning on first match. The winning category is the one with the most
+// accumulated weight; confidence falls out of how dominant that winner is (its
+// total score and its margin over the runner-up). Independent signals that
+// agree therefore *stack* — a bank domain plus a "payment due" subject reinforce
+// each other and raise confidence — while a lone weak signal scores low and is
+// reported as low-confidence.
+//
+// Weight tiers (rough guide):
+//   100  unmistakable (security codes / password resets)
+//    80  high-confidence sender domain (social, bank, retailer, travel, …)
+//    70  strong keyword signal (promo + unsubscribe, taxes, bills)
+//    55  ordinary topical keyword
+//    35  weak heuristic (people inference)
+//     1  last-resort "unsorted" floor so there is always a candidate
+//
+// Rules are plain functions `(ctx, add) => void`; `add(cat, weight, reason)`
+// records a vote. Order is irrelevant — only the totals matter — which makes
+// the engine easy to extend and test.
 
-function classifyCategory(e, ctx) {
-  const { hay, from, isUnsub, oneClick, isBulk, isAutomated, age } = ctx;
-  const userDomain = (e.userAddress || '').split('@')[1] || '';
-  const dom = from.domain;
-  const R = [];
-  const r = (m) => { R.push(m); };
-  const done = (cat, conf) => ({ cat, reasons: R.slice(0, 4), confidence: conf || 'medium' });
-
-  // 1) Security & codes (before generic accounts)
-  if (kwHit(hay, KW.security)) { r('Looks like a sign-in or verification message'); return done('hold_security', 'high'); }
-  if (kwHit(hay, KW.passwordReset)) { r('Password reset request'); return done('hold_security', 'high'); }
+const RULES = [
+  // 1) Security & codes
+  (c, add) => {
+    if (kwHit(c.hay, KW.security)) add('hold_security', 100, 'Looks like a sign-in or verification message');
+    if (kwHit(c.hay, KW.passwordReset)) add('hold_security', 100, 'Password reset request');
+  },
 
   // 2) High-confidence sender domains
-  if (inList(dom, D.social)) { r(`From a social network (${dom})`); return done('clean_social', 'high'); }
-  if (inList(dom, D.dev)) { r(`Developer service (${dom})`); return done('work_code', 'high'); }
-  if (inList(dom, D.projects)) { r(`Project/task tool (${dom})`); return done('work_projects', 'high'); }
-  if (inList(dom, D.fileshare)) { r(`File sharing (${dom})`); return done('work_documents', 'high'); }
-  if (inList(dom, D.chat)) { r(`Team chat (${dom})`); return done('clean_notifications', 'high'); }
-  if (inList(dom, D.calendar) || (kwHit(hay, KW.meeting))) { r('Meeting / calendar invite'); return done('hold_meetings', inList(dom, D.calendar) ? 'high' : 'medium'); }
+  (c, add) => {
+    if (inList(c.dom, D.social)) add('clean_social', 85, `From a social network (${c.dom})`);
+    if (inList(c.dom, D.dev)) add('work_code', 80, `Developer service (${c.dom})`);
+    if (inList(c.dom, D.projects)) add('work_projects', 80, `Project/task tool (${c.dom})`);
+    if (inList(c.dom, D.fileshare)) add('work_documents', 80, `File sharing (${c.dom})`);
+    if (inList(c.dom, D.chat)) add('clean_notifications', 80, `Team chat (${c.dom})`);
+    if (inList(c.dom, D.calendar)) add('hold_meetings', 80, 'Calendar / scheduling service');
+  },
 
-  // 2b) Marketing / bulk mail — runs before retailer/travel domains so a
-  // promo from a shop domain isn't mistaken for a transactional order.
-  // Skipped when clear transactional wording is present.
-  const transactional = kwHit(hay, KW.shipping) || kwHit(hay, KW.order) || kwHit(hay, KW.receipts) ||
-    kwHit(hay, KW.bills) || kwHit(hay, KW.travel) || kwHit(hay, KW.statement) || kwHit(hay, KW.invoice);
-  if (isUnsub && !transactional) {
-    if (kwHit(hay, KW.promo)) { r('Promotional offer with an unsubscribe link'); return done('clean_promotions', 'high'); }
-    if (inList(dom, D.media) || kwHit(hay, KW.newsletter)) { r('Newsletter / digest'); return done('clean_newsletters', 'medium'); }
-    if (kwHit(hay, KW.survey)) { r('Survey / feedback request'); return done('clean_promotions', 'medium'); }
-  }
+  // 3) Meeting wording
+  (c, add) => { if (kwHit(c.hay, KW.meeting)) add('hold_meetings', 55, 'Meeting / calendar invite'); },
 
-  // 3) Travel
-  if (inList(dom, D.travel) || kwHit(hay, KW.travel)) {
-    r(inList(dom, D.travel) ? `Travel provider (${dom})` : 'Travel booking wording');
-    const upcoming = age < 21 || /check-in|boarding|departs|upcoming|your trip/.test(hay);
-    return done(upcoming ? 'hold_travel' : 'travel_records', inList(dom, D.travel) ? 'high' : 'medium');
-  }
+  // 4) Marketing / bulk — only when an unsubscribe link is present and there is
+  //    no transactional wording, so a promo from a shop or travel domain isn't
+  //    mistaken for a real order or booking. The `gatedPromo` flag (see ctx)
+  //    suppresses the retailer/travel domain votes below.
+  (c, add) => {
+    if (!(c.isUnsub && !c.transactional)) return;
+    if (kwHit(c.hay, KW.promo)) add('clean_promotions', 72, 'Promotional offer with an unsubscribe link');
+    if (inList(c.dom, D.media) || kwHit(c.hay, KW.newsletter)) add('clean_newsletters', 55, 'Newsletter / digest');
+    if (kwHit(c.hay, KW.survey)) add('clean_promotions', 45, 'Survey / feedback request');
+  },
 
-  // 4) Shopping / shipping
-  if (kwHit(hay, KW.shipping)) { r('Shipping / delivery update'); return done('hold_transit', 'medium'); }
-  if (kwHit(hay, KW.returns)) { r('Return or refund'); return done('shopping_returns', 'medium'); }
-  if (kwHit(hay, KW.order) || inList(dom, D.shop)) { r('Order confirmation'); return done('shopping_orders', inList(dom, D.shop) ? 'high' : 'medium'); }
+  // 5) Travel
+  (c, add) => {
+    const isDom = inList(c.dom, D.travel);
+    const isKw = !!kwHit(c.hay, KW.travel);
+    if (!isDom && !isKw) return;
+    const upcoming = c.age < 21 || /check-in|boarding|departs|upcoming|your trip/.test(c.hay);
+    const cat = upcoming ? 'hold_travel' : 'travel_records';
+    const reason = isDom ? `Travel provider (${c.dom})` : 'Travel booking wording';
+    if (isDom && !c.gatedPromo) add(cat, 80, reason);
+    else if (isKw) add(cat, 50, reason);
+  },
 
-  // 5) Finance
-  if (inList(dom, D.bank) || kwHit(hay, KW.bills) || kwHit(hay, KW.receipts) || kwHit(hay, KW.statement) ||
-      kwHit(hay, KW.taxes) || kwHit(hay, KW.payroll) || kwHit(hay, KW.insurance) || kwHit(hay, KW.invest) ||
-      (kwHit(hay, KW.invoice) && /pay|due|amount|total/.test(hay))) {
-    if (inList(dom, D.bank)) r(`Bank / payments provider (${dom})`);
-    if (kwHit(hay, KW.taxes)) { r('Tax-related'); return done('finance_taxes', 'medium'); }
-    if (kwHit(hay, KW.payroll)) { r('Payroll / payslip'); return done('finance_payroll', 'medium'); }
-    if (kwHit(hay, KW.insurance)) { r('Insurance'); return done('finance_insurance', 'medium'); }
-    if (kwHit(hay, KW.invest)) { r('Investments'); return done('finance_invest', 'medium'); }
-    if (kwHit(hay, KW.bills)) { r('Payment appears to be due'); return done('hold_bills', 'high'); }
-    if (kwHit(hay, KW.statement)) { r('Bank statement'); return done('finance_bank', 'medium'); }
-    if (kwHit(hay, KW.receipts)) { r('Receipt / payment'); return done('finance_receipts', 'medium'); }
-    if (kwHit(hay, KW.invoice)) { r('Invoice'); return done('finance_invoices', 'medium'); }
-    return done('finance_receipts', 'medium');
-  }
+  // 6) Shopping / shipping — specific transactional wording (a shipment, a
+  //    refund) outscores the generic retailer-domain vote in rule 7-equivalent
+  //    below, so "your order has shipped" files under In Transit, not Orders.
+  (c, add) => {
+    if (kwHit(c.hay, KW.shipping)) add('hold_transit', 85, 'Shipping / delivery update');
+    if (kwHit(c.hay, KW.returns)) add('shopping_returns', 82, 'Return or refund');
+    if (kwHit(c.hay, KW.order)) add('shopping_orders', 50, 'Order confirmation');
+    if (inList(c.dom, D.shop) && !c.gatedPromo) add('shopping_orders', 80, `Retailer (${c.dom})`);
+  },
 
-  // 6) Accounts
-  if (kwHit(hay, KW.welcome)) { r('Welcome / onboarding'); return done('accounts_welcome', 'medium'); }
-  if (kwHit(hay, KW.policy)) { r('Policy / terms update'); return done('accounts_notices', 'medium'); }
+  // 7) Finance — the bank domain casts a low baseline vote (so a bank email with
+  //    no other signal still lands in Receipts); specific wording routes to the
+  //    precise leaf and comfortably outscores that baseline.
+  (c, add) => {
+    if (inList(c.dom, D.bank)) add('finance_receipts', 45, `Bank / payments provider (${c.dom})`);
+    if (kwHit(c.hay, KW.taxes)) add('finance_taxes', 70, 'Tax-related');
+    if (kwHit(c.hay, KW.payroll)) add('finance_payroll', 70, 'Payroll / payslip');
+    if (kwHit(c.hay, KW.insurance)) add('finance_insurance', 70, 'Insurance');
+    if (kwHit(c.hay, KW.invest)) add('finance_invest', 70, 'Investments');
+    if (kwHit(c.hay, KW.bills)) add('hold_bills', 75, 'Payment appears to be due');
+    if (kwHit(c.hay, KW.statement)) add('finance_bank', 66, 'Bank statement');
+    if (kwHit(c.hay, KW.receipts)) add('finance_receipts', 65, 'Receipt / payment');
+    if (kwHit(c.hay, KW.invoice)) add('finance_invoices', /pay|due|amount|total/.test(c.hay) ? 66 : 50, 'Invoice');
+  },
 
-  // 7) Personal admin
-  if (kwHit(hay, KW.appointments)) { r('Appointment / health'); return done('admin_appointments', 'medium'); }
-  if (kwHit(hay, KW.government) || inList(dom, ['gov.uk', 'gov'])) { r('Government / civic'); return done('admin_government', 'medium'); }
-  if (kwHit(hay, KW.utilities)) { r('Utilities / home'); return done('admin_utilities', 'medium'); }
-  if (kwHit(hay, KW.housing)) { r('Housing / property'); return done('admin_housing', 'medium'); }
-  if (kwHit(hay, KW.education)) { r('Education / course'); return done('admin_education', 'medium'); }
+  // 8) Accounts (topical — same tier as personal-admin signals)
+  (c, add) => {
+    if (kwHit(c.hay, KW.welcome)) add('accounts_welcome', 55, 'Welcome / onboarding');
+    if (kwHit(c.hay, KW.policy)) add('accounts_notices', 55, 'Policy / terms update');
+  },
 
-  // 8) Bulk / marketing (needs List-Unsubscribe or bulk header)
-  if (isUnsub || isBulk) {
-    if (inList(dom, D.media) || kwHit(hay, KW.newsletter)) { r('Newsletter / digest'); return done('clean_newsletters', 'medium'); }
-    if (kwHit(hay, KW.promo)) { r('Promotional offer'); return done('clean_promotions', 'high'); }
-    if (kwHit(hay, KW.survey)) { r('Survey / feedback request'); return done('clean_promotions', 'medium'); }
-    r('Bulk mail with an unsubscribe link');
-    return done('clean_newsletters', 'low');
-  }
+  // 9) Personal admin
+  (c, add) => {
+    if (kwHit(c.hay, KW.appointments)) add('admin_appointments', 55, 'Appointment / health');
+    if (kwHit(c.hay, KW.government) || inList(c.dom, ['gov.uk', 'gov'])) add('admin_government', 55, 'Government / civic');
+    if (kwHit(c.hay, KW.utilities)) add('admin_utilities', 55, 'Utilities / home');
+    if (kwHit(c.hay, KW.housing)) add('admin_housing', 55, 'Housing / property');
+    if (kwHit(c.hay, KW.education)) add('admin_education', 55, 'Education / course');
+  },
 
-  // 9) Spam-ish
-  if (kwHit(hay, KW.spam)) { r('Matches common spam phrasing'); return done('clean_spam', 'low'); }
+  // 10) Bulk / marketing fallback (unsubscribe or bulk header, any wording)
+  (c, add) => {
+    if (!(c.isUnsub || c.isBulk)) return;
+    if (inList(c.dom, D.media) || kwHit(c.hay, KW.newsletter)) add('clean_newsletters', 40, 'Newsletter / digest');
+    if (kwHit(c.hay, KW.promo)) add('clean_promotions', 62, 'Promotional offer');
+    if (kwHit(c.hay, KW.survey)) add('clean_promotions', 38, 'Survey / feedback request');
+    add('clean_newsletters', 12, 'Bulk mail with an unsubscribe link');
+  },
 
-  // 10) Reminders / notifications from automated senders
-  if (isAutomated || isBulk) {
-    if (kwHit(hay, KW.reminders)) { r('Reminder / deadline'); return done('hold_reminders', 'medium'); }
-    if (kwHit(hay, KW.notification)) { r('Automated notification'); return done('clean_notifications', 'medium'); }
-  }
+  // 11) Spam phrasing
+  (c, add) => { if (kwHit(c.hay, KW.spam)) add('clean_spam', 30, 'Matches common spam phrasing'); },
 
-  // 11) People (real humans)
-  if (!isAutomated && !isUnsub && !isBulk) {
-    const isReply = /^(re:|fwd:|fw:)/i.test(e.subject || '');
-    const asks = (e.subject || '').includes('?');
-    let cat, conf = 'medium';
-    const hasRealName = from.name.includes(' ');
-    if (dom && dom === userDomain) { r('Colleague (your domain)'); cat = 'people_colleagues'; }
-    else if (inList(dom, FREEMAIL)) { r('Personal contact'); cat = 'people_personal'; }
+  // 12) Reminders / notifications from automated *transactional* senders.
+  //     Skipped for mailing lists (isUnsub) — there the marketing read in
+  //     rule 10 owns the email, so a "last chance / expiring soon" promo stays
+  //     in Clean up rather than being read as a personal reminder.
+  (c, add) => {
+    if (c.isUnsub || !(c.isAutomated || c.isBulk)) return;
+    if (kwHit(c.hay, KW.reminders)) add('hold_reminders', 42, 'Reminder / deadline');
+    if (kwHit(c.hay, KW.notification)) add('clean_notifications', 42, 'Automated notification');
+  },
+
+  // 13) People (real humans) — only when the sender looks human (not automated,
+  //     not a mailing list). A reply or a question bumps it to "To Respond".
+  (c, add) => {
+    if (c.isAutomated || c.isUnsub || c.isBulk) return;
+    let cat = null, reason = null;
+    if (c.dom && c.dom === c.userDomain) { cat = 'people_colleagues'; reason = 'Colleague (your domain)'; }
+    else if (inList(c.dom, FREEMAIL)) { cat = 'people_personal'; reason = 'Personal contact'; }
     // A non-freemail business domain is only a "client" with a positive signal
     // (a real name, a reply, or a question) — otherwise it stays Unsorted.
-    else if (dom && (hasRealName || isReply || asks)) { r('External contact / client'); cat = 'people_clients'; }
-    if (cat) {
-      if (isReply) { r('Part of an ongoing conversation'); return done('hold_respond', 'medium'); }
-      if (asks) { r('Asks a question'); return done('hold_respond', 'medium'); }
-      return done(cat, conf);
-    }
-  }
+    else if (c.dom && (c.hasRealName || c.isReply || c.asks)) { cat = 'people_clients'; reason = 'External contact / client'; }
+    if (!cat) return;
+    add(cat, 35, reason);
+    if (c.isReply) add('hold_respond', 50, 'Part of an ongoing conversation');
+    else if (c.asks) add('hold_respond', 50, 'Asks a question');
+  },
 
-  // 12) Last-resort buckets
-  if (kwHit(hay, KW.notification)) { r('Automated notification'); return done('clean_notifications', 'low'); }
+  // 14) Last-resort notification bucket
+  (c, add) => { if (kwHit(c.hay, KW.notification)) add('clean_notifications', 12, 'Automated notification'); },
+];
 
-  // 13) Couldn't identify
-  r('No confident signal — left in your Inbox for review');
-  return done('unsorted', 'low');
+// Floor weight that the "unsorted" candidate always carries, so there is a
+// winner even when no rule fires.
+const UNSORTED_FLOOR = 1;
+
+function classifyCategory(e, ctx) {
+  // Enrich the context with the derived signals the rules read.
+  const c = {
+    ...ctx,
+    dom: ctx.from.domain,
+    userDomain: (e.userAddress || '').split('@')[1] || '',
+    isReply: /^(re:|fwd:|fw:)/i.test(e.subject || ''),
+    asks: (e.subject || '').includes('?'),
+    hasRealName: ctx.from.name.includes(' '),
+    transactional: !!(kwHit(ctx.hay, KW.shipping) || kwHit(ctx.hay, KW.order) || kwHit(ctx.hay, KW.receipts) ||
+      kwHit(ctx.hay, KW.bills) || kwHit(ctx.hay, KW.travel) || kwHit(ctx.hay, KW.statement) || kwHit(ctx.hay, KW.invoice)),
+  };
+  // A gated promo (unsubscribe link + promo wording + no transactional wording)
+  // suppresses the retailer/travel *domain* votes so the marketing read wins.
+  c.gatedPromo = c.isUnsub && !c.transactional && !!kwHit(c.hay, KW.promo);
+
+  const scores = {};
+  const reasons = {};
+  const add = (cat, weight, reason) => {
+    scores[cat] = (scores[cat] || 0) + weight;
+    if (reason) (reasons[cat] = reasons[cat] || []).push(reason);
+  };
+  for (const rule of RULES) rule(c, add);
+  add('unsorted', UNSORTED_FLOOR, null);
+
+  // Rank candidates by total weight.
+  const ranked = Object.keys(scores).sort((a, b) => scores[b] - scores[a]);
+  const winner = ranked[0];
+  const winScore = scores[winner];
+  const runnerScore = ranked.length > 1 ? scores[ranked[1]] : 0;
+
+  // Confidence from how dominant the winner is.
+  let confidence;
+  if (winScore >= 70 && winScore - runnerScore >= 15) confidence = 'high';
+  else if (winScore >= 35) confidence = 'medium';
+  else confidence = 'low';
+
+  const R = (reasons[winner] || []).slice(0, 4);
+  if (!R.length) R.push('No confident signal — left in your Inbox for review');
+
+  return { cat: winner, reasons: R, confidence, score: winScore, margin: winScore - runnerScore };
 }
 
 // ---------------------------------------------------------------------------

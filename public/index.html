@@ -6,17 +6,18 @@
   <title>InBoxer — Your inbox, finally organised</title>
   <meta name="description" content="InBoxer scans your whole inbox over IMAP, proposes a folder structure, mass-unsubscribes and stages junk for deletion. Smart, rule-based, private and free." />
   <link rel="stylesheet" href="styles.css" />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%AC%3C/text%3E%3C/svg%3E" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A5%8A%3C/text%3E%3C/svg%3E" />
 </head>
 <body>
 
   <!-- ===================== LANDING ===================== -->
   <div id="landing" class="view">
     <nav class="nav">
-      <a class="logo" href="#" data-nav="top"><span class="logo-mark">📬</span><span class="logo-word">In<b>Boxer</b></span></a>
+      <a class="logo" href="#" data-nav="top"><span class="logo-mark">🥊</span><span class="logo-word">In<b>Boxer</b></span></a>
       <div class="nav-links">
         <a href="#features">Features</a>
         <a href="#how">How it works</a>
+        <a href="#trust">Trust</a>
         <button class="btn ghost sm donate" data-donate>♥ Donate</button>
         <button class="btn ghost sm" id="navDemo">Live demo</button>
         <button class="btn primary sm" id="navConnect">Connect inbox</button>
@@ -30,6 +31,9 @@
         <p>InBoxer scans your whole inbox, proposes a tidy folder structure, finds everything
            you can mass-unsubscribe from, and clears out the junk — across Gmail, Outlook,
            Yahoo, iCloud and any IMAP provider. You review and confirm; nothing is ever deleted.</p>
+        <p class="hero-why">It's <b>free</b> and <em>private by design</em>: no ads, no subscription, and your mail
+           is never sold, stored or sent anywhere — only read to sort it, then forgotten. The
+           folder structure it builds keeps your inbox organised long after the first clean-up.</p>
         <div class="hero-cta">
           <button class="btn primary lg" id="heroDemo">▶ Try the live demo</button>
           <button class="btn outline lg" id="heroConnect">Connect your inbox</button>
@@ -55,7 +59,7 @@
     </header>
 
     <section class="band">
-      <div class="band-item"><b>38</b><span>smart categories</span></div>
+      <div class="band-item"><b>50+</b><span>signals weighed</span></div>
       <div class="band-item"><b>100k</b><span>emails per scan</span></div>
       <div class="band-item"><b>0</b><span>emails deleted, ever</span></div>
       <div class="band-item"><b>$0</b><span>cost — free forever</span></div>
@@ -83,9 +87,95 @@
       <div class="how-cta"><button class="btn primary lg" id="howDemo">▶ See it in action</button></div>
     </section>
 
+    <section class="trust-section" id="trust">
+      <h2>Trust</h2>
+      <p class="trust-lead">Handing an app your inbox is a big ask, and we don't take it lightly.
+        Trust is the most important thing InBoxer has — without it, none of the rest matters.
+        So rather than just <em>promise</em> we respect your privacy, we'll <b>show you exactly how it works</b>,
+        right down to the code that touches your email.</p>
+
+      <!-- Data-flow diagram: where your mail goes (and doesn't) -->
+      <div class="trust-flow">
+        <div class="flow-node">
+          <div class="fn-ic">📥</div>
+          <b>Your inbox</b>
+          <span>Gmail, Outlook, iCloud, any IMAP provider</span>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node hub">
+          <div class="fn-ic">🥊</div>
+          <b>InBoxer</b>
+          <span>Reads headers only · holds nothing on disk</span>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="fn-ic">📂</div>
+          <b>Folders in your own account</b>
+          <span>Sorted straight back to you</span>
+        </div>
+      </div>
+      <p class="flow-caption">Your email and password never leave this loop — no third-party server, no AI service, no database.</p>
+
+      <!-- The three promises, in plain language -->
+      <div class="trust-pillars">
+        <div class="tp">
+          <div class="tp-ic">📭</div>
+          <h3>We never read your emails</h3>
+          <p>InBoxer only ever asks your mail server for message <b>headers</b> — the sender, subject and date.
+             The actual contents of your emails are never downloaded, full stop.</p>
+        </div>
+        <div class="tp">
+          <div class="tp-ic">🗝️</div>
+          <h3>Nothing is stored</h3>
+          <p>Your password lives in memory for the session only — <b>never written to disk, never logged</b>,
+             and wiped the moment you leave. We couldn't keep it if we wanted to.</p>
+        </div>
+        <div class="tp">
+          <div class="tp-ic">🧠</div>
+          <h3>No AI, no third parties</h3>
+          <p>Sorting is plain, transparent rules — <b>no AI, no API key, no outside services</b>.
+             Your mail is never sold and never sent anywhere but your own provider.</p>
+        </div>
+      </div>
+
+      <!-- The proof: the real code that touches your mail -->
+      <div class="trust-proof">
+        <h3 class="proof-title">Don't take our word for it — here's the code</h3>
+        <p class="proof-sub">These are the exact lines from InBoxer that handle your email. Nothing hidden.</p>
+        <div class="code-cards">
+
+          <div class="code-card">
+            <div class="cc-cap"><span class="cc-file">server.js</span>The <b>only</b> thing InBoxer asks your mail server for — headers, never the body of an email.</div>
+            <pre><code><span class="cm">// The only fields InBoxer ever fetches from your inbox</span>
+const HEADER_FIELDS =
+  <span class="str">'HEADER.FIELDS (FROM TO SUBJECT DATE LIST-UNSUBSCRIBE LIST-UNSUBSCRIBE-POST PRECEDENCE AUTO-SUBMITTED REPLY-TO)'</span>;</code></pre>
+          </div>
+
+          <div class="code-card">
+            <div class="cc-cap"><span class="cc-file">app.js</span>Your credentials are held in memory for the session and <b>wiped when you exit</b> — never persisted.</div>
+            <pre><code><span class="cm">// Credentials kept only in memory for the session; never persisted.</span>
+const creds = { email: <span class="str">''</span>, password: <span class="str">''</span>, host: <span class="str">''</span>, port: <span class="str">''</span>, limit: 100000 };
+
+function exitToLanding() {
+  creds.email = <span class="str">''</span>; creds.password = <span class="str">''</span>;   <span class="cm">// wiped on exit</span>
+  allEmails = []; isDemo = false;
+}</code></pre>
+          </div>
+
+          <div class="code-card">
+            <div class="cc-cap"><span class="cc-file">categorize.js</span>Every email is sorted by plain rules over its headers. <b>No AI, no API key, no body.</b></div>
+            <pre><code><span class="cm">/* InBoxer rules engine.
+ * Pure rules over headers + subject.
+ * No body, no AI, no API key. */</span></code></pre>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
     <footer class="footer">
-      <span class="logo-word">📬 In<b>Boxer</b></span>
-      <span class="footer-mid">Built as an MVP · Rule-based · Free · Private</span>
+      <span class="logo-word">🥊 In<b>Boxer</b></span>
+      <span class="footer-mid">In Beta testing · Rule-based · Free · Private</span>
       <button class="btn outline sm" data-donate>♥ Support InBoxer</button>
     </footer>
   </div>
@@ -119,7 +209,7 @@
   <!-- ===================== PROGRESS OVERLAY (scan + apply) ===================== -->
   <div id="scanOverlay" class="modal-overlay hidden">
     <div class="scan-card card">
-      <div class="logo-mark big">📬</div>
+      <div class="logo-mark big">🥊</div>
       <h2 id="scanTitle">Scanning your inbox…</h2>
       <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
       <p class="muted" id="scanStatus">Connecting…</p>
@@ -129,7 +219,7 @@
   <!-- ===================== REVIEW / TAXONOMY ===================== -->
   <div id="review" class="view hidden">
     <header class="topbar">
-      <a class="logo" href="#" id="reviewHome"><span class="logo-mark">📬</span><span class="logo-word">In<b>Boxer</b></span></a>
+      <a class="logo" href="#" id="reviewHome"><span class="logo-mark">🥊</span><span class="logo-word">In<b>Boxer</b></span></a>
       <div class="topbar-actions">
         <span id="reviewBadge" class="demo-badge hidden">Demo data</span>
         <button class="btn ghost sm donate" data-donate>♥ Donate</button>
@@ -192,7 +282,7 @@
   <!-- ===================== APP / DASHBOARD ===================== -->
   <div id="app" class="view hidden">
     <header class="topbar">
-      <a class="logo" href="#" id="backHome"><span class="logo-mark">📬</span><span class="logo-word">In<b>Boxer</b></span></a>
+      <a class="logo" href="#" id="backHome"><span class="logo-mark">🥊</span><span class="logo-word">In<b>Boxer</b></span></a>
       <div class="topbar-actions">
         <span id="demoBadge" class="demo-badge hidden">Demo data</span>
         <span id="accountLabel" class="account"></span>
@@ -242,7 +332,7 @@
       </div>
       <label class="custom-amt">Custom amount <input type="number" id="customAmt" min="1" placeholder="$" /></label>
       <button class="btn primary full" id="donateGo">Continue to payment</button>
-      <p class="muted small center">Payments are coming soon — this is a preview. No card is charged.</p>
+      <p class="muted small center">🔒 Secure payment handled by Stripe. We never see your card details.</p>
     </div>
   </div>
 
@@ -269,6 +359,18 @@
       <div class="tour-controls">
         <button class="linkbtn" id="tourSkip">Skip</button>
         <div><button class="btn ghost sm" id="tourBack">Back</button><button class="btn primary sm" id="tourNext">Next</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== CONFIRM DIALOG ===================== -->
+  <div id="confirmModal" class="modal-overlay hidden">
+    <div class="modal card confirm-card">
+      <h2 id="confirmTitle"></h2>
+      <p class="subtitle" id="confirmBody"></p>
+      <div class="confirm-actions">
+        <button class="btn outline" id="confirmCancel">Cancel</button>
+        <button class="btn primary" id="confirmOk">Confirm</button>
       </div>
     </div>
   </div>

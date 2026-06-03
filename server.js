@@ -74,6 +74,68 @@ function toEmail(raw) {
 }
 
 // ---------------------------------------------------------------------------
+// Donations — Stripe Checkout (server-validated amount, hosted card form)
+// ---------------------------------------------------------------------------
+
+const Stripe = require('stripe');
+const DONATION_CURRENCY = (process.env.DONATION_CURRENCY || 'usd').toLowerCase();
+const DONATION_MIN = 1;      // dollars
+const DONATION_MAX = 999;    // dollars — sanity ceiling, never trust the client
+
+// Lazily created so the app still boots without a key (the route returns a
+// clear error instead). Keep the secret key in an env var — never in code.
+let _stripe = null;
+function getStripe() {
+  if (_stripe) return _stripe;
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) return null;
+  _stripe = new Stripe(key);
+  return _stripe;
+}
+
+// Build the public origin (works locally and behind Vercel's proxy).
+function publicOrigin(req) {
+  if (process.env.PUBLIC_URL) return process.env.PUBLIC_URL.replace(/\/$/, '');
+  if (req.headers.origin) return req.headers.origin;
+  const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'http').split(',')[0];
+  return `${proto}://${req.headers.host}`;
+}
+
+app.post('/api/create-checkout-session', async (req, res) => {
+  const stripe = getStripe();
+  if (!stripe) {
+    return res.status(503).json({ error: 'Payments are not configured yet. Set STRIPE_SECRET_KEY to enable donations.' });
+  }
+
+  // Validate the amount server-side; the client value is untrusted.
+  const dollars = Math.floor(Number(req.body && req.body.amount));
+  if (!Number.isFinite(dollars) || dollars < DONATION_MIN || dollars > DONATION_MAX) {
+    return res.status(400).json({ error: `Please choose an amount between $${DONATION_MIN} and $${DONATION_MAX}.` });
+  }
+
+  try {
+    const origin = publicOrigin(req);
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      submit_type: 'donate',
+      line_items: [{
+        quantity: 1,
+        price_data: {
+          currency: DONATION_CURRENCY,
+          unit_amount: dollars * 100,   // Stripe expects the smallest currency unit
+          product_data: { name: 'Support InBoxer', description: 'A tip to help keep InBoxer free and running.' },
+        },
+      }],
+      success_url: `${origin}/?donation=success`,
+      cancel_url: `${origin}/?donation=cancelled`,
+    });
+    res.json({ url: session.url });
+  } catch (err) {
+    res.status(500).json({ error: (err && err.message) || 'Could not start the payment.' });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Demo mode
 // ---------------------------------------------------------------------------
 

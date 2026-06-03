@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InBoxer — Your inbox, finally organised</title>
+  <meta name="description" content="InBoxer scans your whole inbox over IMAP, proposes a folder structure, mass-unsubscribes and stages junk for deletion. Smart, rule-based, private and free." />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%AC%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+
+  <!-- ===================== LANDING ===================== -->
+  <div id="landing" class="view">
+    <nav class="nav">
+      <a class="logo" href="#" data-nav="top"><span class="logo-mark">📬</span><span class="logo-word">In<b>Boxer</b></span></a>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#how">How it works</a>
+        <button class="btn ghost sm donate" data-donate>♥ Donate</button>
+        <button class="btn ghost sm" id="navDemo">Live demo</button>
+        <button class="btn primary sm" id="navConnect">Connect inbox</button>
+      </div>
+    </nav>
+
+    <header class="hero">
+      <div class="hero-text">
+        <span class="pill">✨ Free · No AI key · Works everywhere</span>
+        <h1>Your inbox,<br><span class="grad">finally organised.</span></h1>
+        <p>InBoxer scans your whole inbox, proposes a tidy folder structure, finds everything
+           you can mass-unsubscribe from, and clears out the junk — across Gmail, Outlook,
+           Yahoo, iCloud and any IMAP provider. You review and confirm; nothing is ever deleted.</p>
+        <div class="hero-cta">
+          <button class="btn primary lg" id="heroDemo">▶ Try the live demo</button>
+          <button class="btn outline lg" id="heroConnect">Connect your inbox</button>
+        </div>
+        <div class="trust">🔒 Credentials never stored · 🧠 Transparent rules · ⚡ Scans up to 100,000 emails</div>
+      </div>
+
+      <div class="hero-visual" aria-hidden="true">
+        <div class="mock">
+          <div class="mock-bar"><span></span><span></span><span></span></div>
+          <div class="mock-stats">
+            <div class="ms"><b>12,480</b><i>scanned</i></div>
+            <div class="ms hi"><b>38</b><i>need you</i></div>
+            <div class="ms gr"><b>6,902</b><i>to archive</i></div>
+          </div>
+          <div class="mock-row"><span class="mi">✍️</span><div><b>Sarah Mitchell</b><i>Re: lunch on Friday?</i></div><span class="mp hi">high</span></div>
+          <div class="mock-row"><span class="mi">🔐</span><div><b>Google</b><i>Security alert: new sign-in</i></div><span class="mp hi">high</span></div>
+          <div class="mock-row"><span class="mi">🏷️</span><div><b>ASOS</b><i>50% off — flash sale!</i></div><span class="mp lo">low</span></div>
+          <div class="mock-row"><span class="mi">📦</span><div><b>Amazon</b><i>Your package has shipped</i></div><span class="mp me">med</span></div>
+          <div class="mock-row"><span class="mi">📰</span><div><b>Morning Brew</b><i>Daily digest</i></div><span class="mp lo">low</span></div>
+        </div>
+      </div>
+    </header>
+
+    <section class="band">
+      <div class="band-item"><b>38</b><span>smart categories</span></div>
+      <div class="band-item"><b>100k</b><span>emails per scan</span></div>
+      <div class="band-item"><b>0</b><span>emails deleted, ever</span></div>
+      <div class="band-item"><b>$0</b><span>cost — free forever</span></div>
+    </section>
+
+    <section class="features" id="features">
+      <h2>Everything you need to take back your inbox</h2>
+      <div class="feature-grid">
+        <div class="feature"><div class="fi">🌍</div><h3>Works everywhere</h3><p>One IMAP connection covers Gmail, Outlook, Yahoo, iCloud, Fastmail and virtually every provider.</p></div>
+        <div class="feature"><div class="fi">🗂️</div><h3>Proposes a folder structure</h3><p>InBoxer designs a clean folder taxonomy from your real mail. You review and confirm before anything moves.</p></div>
+        <div class="feature"><div class="fi">🚫</div><h3>Mass unsubscribe</h3><p>It finds every list you can leave in one place and lets you unsubscribe in bulk — no more inbox creep.</p></div>
+        <div class="feature"><div class="fi">🧹</div><h3>Stages junk safely</h3><p>Old promos and noise are moved to a “review &amp; delete” folder. InBoxer never deletes anything itself.</p></div>
+        <div class="feature"><div class="fi">⚡</div><h3>Built for scale</h3><p>Streams through tens of thousands of emails with a live progress bar, newest first.</p></div>
+        <div class="feature"><div class="fi">🔒</div><h3>Private by design</h3><p>Your details live in memory for the session only — never written to disk, never logged. No AI key, no cost.</p></div>
+      </div>
+    </section>
+
+    <section class="how" id="how">
+      <h2>How it works</h2>
+      <div class="steps">
+        <div class="step"><span class="num">1</span><h3>Scan</h3><p>Connect with an app password — or explore the live demo. InBoxer reads your whole inbox.</p></div>
+        <div class="step"><span class="num">2</span><h3>Review the plan</h3><p>See the proposed folders, the lists to unsubscribe from, and the junk to clear. Tweak anything.</p></div>
+        <div class="step"><span class="num">3</span><h3>Confirm &amp; sort</h3><p>InBoxer creates the folders in your inbox and files everything away. Permanent, and reversible by you.</p></div>
+      </div>
+      <div class="how-cta"><button class="btn primary lg" id="howDemo">▶ See it in action</button></div>
+    </section>
+
+    <footer class="footer">
+      <span class="logo-word">📬 In<b>Boxer</b></span>
+      <span class="footer-mid">Built as an MVP · Rule-based · Free · Private</span>
+      <button class="btn outline sm" data-donate>♥ Support InBoxer</button>
+    </footer>
+  </div>
+
+  <!-- ===================== CONNECT MODAL ===================== -->
+  <div id="connectModal" class="modal-overlay hidden">
+    <div class="modal card">
+      <button class="modal-close" id="modalClose">✕</button>
+      <h2>Connect your inbox</h2>
+      <p class="subtitle">Works with any IMAP provider. Nothing is stored — your details are used only to connect, for this session.</p>
+      <form id="connectForm">
+        <label>Email address<input type="email" id="email" placeholder="you@example.com" autocomplete="username" required /></label>
+        <label>Password / app password<input type="password" id="password" placeholder="App password recommended" autocomplete="current-password" required /></label>
+        <details class="advanced">
+          <summary>Advanced (IMAP host, port &amp; scan size)</summary>
+          <div class="row">
+            <label>IMAP host<input type="text" id="host" placeholder="auto-detected" /></label>
+            <label class="narrow">Port<input type="number" id="port" placeholder="993" /></label>
+          </div>
+          <label>Max emails to scan<input type="number" id="limit" value="100000" min="1" max="100000" /></label>
+          <span class="muted">Defaults to your whole inbox (up to 100,000). Streams in live.</span>
+        </details>
+        <button type="submit" class="btn primary" id="connectBtn">Scan my inbox</button>
+        <p class="error hidden" id="connectError"></p>
+      </form>
+      <div class="hint"><strong>Tip:</strong> Gmail, Outlook &amp; Yahoo block normal passwords. With 2-factor on, create an <em>app password</em> in your account security settings and paste it here.</div>
+      <div class="modal-demo">No account handy? <button class="linkbtn" id="modalDemo">Explore the live demo →</button></div>
+    </div>
+  </div>
+
+  <!-- ===================== PROGRESS OVERLAY (scan + apply) ===================== -->
+  <div id="scanOverlay" class="modal-overlay hidden">
+    <div class="scan-card card">
+      <div class="logo-mark big">📬</div>
+      <h2 id="scanTitle">Scanning your inbox…</h2>
+      <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
+      <p class="muted" id="scanStatus">Connecting…</p>
+    </div>
+  </div>
+
+  <!-- ===================== REVIEW / TAXONOMY ===================== -->
+  <div id="review" class="view hidden">
+    <header class="topbar">
+      <a class="logo" href="#" id="reviewHome"><span class="logo-mark">📬</span><span class="logo-word">In<b>Boxer</b></span></a>
+      <div class="topbar-actions">
+        <span id="reviewBadge" class="demo-badge hidden">Demo data</span>
+        <button class="btn ghost sm donate" data-donate>♥ Donate</button>
+        <button id="reviewTour" class="btn ghost sm">🎓 Tour</button>
+        <button id="reviewExit" class="btn ghost sm">Exit</button>
+      </div>
+    </header>
+
+    <div class="review-wrap">
+      <div class="review-head">
+        <h1>Here’s how InBoxer will organise your inbox</h1>
+        <p class="subtitle">Review the plan below and tweak anything. Nothing changes until you confirm —
+          and InBoxer never deletes a single email.</p>
+      </div>
+
+      <section class="summary" id="reviewSummary"></section>
+
+      <div class="review-cols">
+        <!-- Folder taxonomy -->
+        <section class="rev-card">
+          <div class="rev-card-head">
+            <h3>🗂️ Proposed folder structure</h3>
+            <span class="muted" id="folderHint"></span>
+          </div>
+          <div class="tree-parent">📁 <input type="text" id="parentName" value="InBoxer" spellcheck="false" /> <span class="muted">parent folder · untick anything to skip it</span></div>
+          <div class="tree" id="folderTree"></div>
+          <p class="muted small" id="unsortedNote"></p>
+        </section>
+
+        <div class="review-side">
+          <!-- Mass unsubscribe -->
+          <section class="rev-card accent">
+            <div class="rev-card-head"><h3>🚫 One-click unsubscribe</h3></div>
+            <p class="rev-lead" id="unsubLead"></p>
+            <button class="btn primary full" id="massUnsub">Unsubscribe from all</button>
+            <button class="linkbtn block" id="toggleUnsubList">Hide senders ▴</button>
+            <ul class="sender-list" id="unsubList"></ul>
+          </section>
+
+          <!-- Legend: how InBoxer sorts -->
+          <section class="rev-card">
+            <div class="rev-card-head"><h3>How InBoxer sorts</h3></div>
+            <ul class="legend">
+              <li><span class="lg-ic">📂</span><div><b>File</b> — lasting reference. Archived into tidy folders.</div></li>
+              <li><span class="lg-ic">⏳</span><div><b>Hold</b> — act soon. Time-sensitive; untick to keep in your Inbox.</div></li>
+              <li><span class="lg-ic">🧹</span><div><b>Clean up</b> — stale &amp; low-value. Staged for you to delete — never deleted automatically.</div></li>
+              <li><span class="lg-ic">❓</span><div><b>Unsorted</b> — couldn’t identify confidently. Filed to its own folder so your Inbox ends up empty.</div></li>
+            </ul>
+          </section>
+        </div>
+      </div>
+
+      <div class="review-actions">
+        <button class="btn outline" id="browseDetail">Browse emails in detail</button>
+        <button class="btn primary lg" id="confirmApply">Create folders &amp; sort my inbox →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== APP / DASHBOARD ===================== -->
+  <div id="app" class="view hidden">
+    <header class="topbar">
+      <a class="logo" href="#" id="backHome"><span class="logo-mark">📬</span><span class="logo-word">In<b>Boxer</b></span></a>
+      <div class="topbar-actions">
+        <span id="demoBadge" class="demo-badge hidden">Demo data</span>
+        <span id="accountLabel" class="account"></span>
+        <button class="btn ghost sm donate" data-donate>♥ Donate</button>
+        <button id="backToPlan" class="btn ghost sm">← Plan</button>
+        <button id="tourBtn" class="btn ghost sm">🎓 Tour</button>
+        <button id="refreshBtn" class="btn ghost sm">↻ Refresh</button>
+        <button id="logoutBtn" class="btn ghost sm">Exit</button>
+      </div>
+    </header>
+
+    <div class="dashboard">
+      <section class="summary" id="summary"></section>
+      <div class="layout">
+        <aside class="sidebar">
+          <h3>Mailbox</h3>
+          <ul id="categoryList"></ul>
+        </aside>
+        <section class="content">
+          <div class="toolbar">
+            <label class="select-all"><input type="checkbox" id="selectAll" /> Select all shown</label>
+            <div class="bulk-actions">
+              <span id="selectedCount" class="muted">0 selected</span>
+              <button class="btn small" data-bulk="markRead">Mark read</button>
+              <button class="btn small" data-bulk="move">Move to folder…</button>
+            </div>
+          </div>
+          <div id="emailList" class="email-list"></div>
+          <div id="loadMoreWrap" class="load-more hidden"><button class="btn outline" id="loadMore">Load more</button></div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== DONATE MODAL ===================== -->
+  <div id="donateModal" class="modal-overlay hidden">
+    <div class="modal card donate-card">
+      <button class="modal-close" id="donateClose">✕</button>
+      <div class="donate-heart">♥</div>
+      <h2>Support InBoxer</h2>
+      <p class="subtitle">InBoxer is free and private, with no ads and no AI subscription costs.
+        If it saved you time, a small tip helps keep it going.</p>
+      <div class="tier-row">
+        <button class="tier" data-amt="3">$3<span>Coffee</span></button>
+        <button class="tier featured" data-amt="5">$5<span>Cheers!</span></button>
+        <button class="tier" data-amt="10">$10<span>Generous</span></button>
+      </div>
+      <label class="custom-amt">Custom amount <input type="number" id="customAmt" min="1" placeholder="$" /></label>
+      <button class="btn primary full" id="donateGo">Continue to payment</button>
+      <p class="muted small center">Payments are coming soon — this is a preview. No card is charged.</p>
+    </div>
+  </div>
+
+  <!-- ===================== SUCCESS MODAL ===================== -->
+  <div id="successModal" class="modal-overlay hidden">
+    <div class="modal card success-card">
+      <div class="success-tick">✅</div>
+      <h2 id="successTitle">Your inbox is organised!</h2>
+      <p class="subtitle" id="successBody"></p>
+      <div class="success-actions">
+        <button class="btn outline" id="successDonate">♥ Support InBoxer</button>
+        <button class="btn primary" id="successView">View my inbox →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== TOUR ===================== -->
+  <div id="tourOverlay" class="tour-overlay hidden">
+    <div id="tourSpotlight" class="tour-spotlight"></div>
+    <div id="tourTip" class="tour-tip">
+      <div class="tour-step" id="tourStep"></div>
+      <h4 id="tourTitle"></h4>
+      <p id="tourBody"></p>
+      <div class="tour-controls">
+        <button class="linkbtn" id="tourSkip">Skip</button>
+        <div><button class="btn ghost sm" id="tourBack">Back</button><button class="btn primary sm" id="tourNext">Next</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 'use strict';
 
 // Credentials kept only in memory for the session; never persisted.
-const creds = { email: '', password: '', host: '', port: '', limit: 100000 };
+const creds = { email: '', password: '', host: '', port: '', limit: 100000, msToken: '' };
 let allEmails = [];
 let unsubData = { senders: [], totalEmails: 0, oneClickCount: 0 };
 let planFolders = [];          // [{id, segments, uids, count, dispKey}]
@@ -26,11 +26,31 @@ const hide = (id) => $(id).classList.add('hidden');
 // ---------------------------------------------------------------------------
 
 function showLanding() {
-  ['app', 'review', 'connectModal', 'scanOverlay', 'donateModal', 'successModal', 'tourOverlay'].forEach(hide);
+  ['app', 'review', 'connectModal', 'scanOverlay', 'donateModal', 'successModal', 'tourOverlay', 'walkthrough'].forEach(hide);
   show('landing'); $('password').value = '';
 }
 const openConnect = () => show('connectModal');
 const closeConnect = () => hide('connectModal');
+
+// App-password walkthrough — a full view. Remembers whether it was opened from the
+// connect modal so "Back" returns there, otherwise back to the landing page.
+let walkthroughCameFromConnect = false;
+function openWalkthrough(fromConnect) {
+  walkthroughCameFromConnect = !!fromConnect;
+  ['connectModal', 'landing'].forEach(hide);
+  show('walkthrough'); window.scrollTo(0, 0);
+}
+function closeWalkthrough() {
+  hide('walkthrough'); show('landing');
+  if (walkthroughCameFromConnect) openConnect();
+  walkthroughCameFromConnect = false;
+}
+
+$('connectGuide').addEventListener('click', () => { closeConnect(); openWalkthrough(true); });
+$('howGuide').addEventListener('click', () => openWalkthrough(false));
+$('wtBack').addEventListener('click', closeWalkthrough);
+$('wtHome').addEventListener('click', (e) => { e.preventDefault(); walkthroughCameFromConnect = false; closeWalkthrough(); });
+$('wtConnect').addEventListener('click', () => { hide('walkthrough'); show('landing'); walkthroughCameFromConnect = false; openConnect(); });
 
 ['navConnect', 'heroConnect'].forEach((id) => $(id).addEventListener('click', openConnect));
 ['navDemo', 'heroDemo', 'howDemo', 'modalDemo'].forEach((id) => $(id).addEventListener('click', startDemo));
@@ -44,7 +64,7 @@ $('backToPlan').addEventListener('click', () => { hide('app'); show('review'); }
 $('browseDetail').addEventListener('click', () => enterDashboard());
 
 function exitToLanding() {
-  creds.email = ''; creds.password = ''; allEmails = []; isDemo = false;
+  creds.email = ''; creds.password = ''; creds.msToken = ''; allEmails = []; isDemo = false;
   endTour(); showLanding();
 }
 
@@ -66,20 +86,18 @@ async function startDemo() {
   } catch (e) { hide('scanOverlay'); toast('Could not load demo: ' + e.message, true); }
 }
 
-$('connectForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  creds.email = $('email').value.trim(); creds.password = $('password').value;
-  creds.host = $('host').value.trim(); creds.port = $('port').value.trim();
-  creds.limit = $('limit').value || 100000;
+// Kick off a scan with whatever auth is already on `creds` (password or msToken).
+async function runScan() {
   const err = $('connectError'); err.classList.add('hidden');
-  closeConnect(); show('scanOverlay');
+  closeConnect(); hide('walkthrough'); walkthroughCameFromConnect = false; show('scanOverlay');
   $('scanTitle').textContent = 'Scanning your inbox…'; $('scanStatus').textContent = 'Connecting…';
   $('progressBar').style.width = '3%'; allEmails = []; isDemo = false;
   try {
     const res = await fetch('/api/scan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(creds) });
     if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed to connect'); }
     await consumeStream(res.body, (evt) => {
-      if (evt.type === 'start') {
+      if (evt.type === 'auth') { creds.msToken = evt.sessionToken; }
+      else if (evt.type === 'start') {
         $('scanStatus').textContent = evt.total === 0 ? 'Inbox is empty.'
           : `Found ${evt.mailboxTotal.toLocaleString()} emails. Scanning the newest ${evt.total.toLocaleString()}…`;
       } else if (evt.type === 'batch') {
@@ -91,7 +109,68 @@ $('connectForm').addEventListener('submit', async (e) => {
     });
     setTimeout(() => { hide('scanOverlay'); enterReview(false); }, 250);
   } catch (e2) { hide('scanOverlay'); openConnect(); err.textContent = e2.message; err.classList.remove('hidden'); }
+}
+
+$('connectForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  creds.email = $('email').value.trim(); creds.password = $('password').value; creds.msToken = '';
+  creds.host = $('host').value.trim(); creds.port = $('port').value.trim();
+  creds.limit = $('limit').value || 100000;
+  runScan();
 });
+
+// ---- Sign in with Microsoft (OAuth popup; Outlook/Hotmail no longer allow passwords) ----
+let msAuthDone = false;
+function handleMsAuth(d) {
+  if (!d || d.type !== 'ms-auth' || msAuthDone) return;   // guard against double-delivery
+  msAuthDone = true;
+  const err = $('connectError');
+  if (d.ok && d.sessionToken) {
+    creds.email = d.email || ''; creds.msToken = d.sessionToken;
+    creds.password = ''; creds.host = ''; creds.port = '';
+    creds.limit = ($('limit') && $('limit').value) || 100000;
+    runScan();
+  } else {
+    openConnect();
+    err.textContent = d.error || 'Microsoft sign-in was cancelled or failed.';
+    err.classList.remove('hidden');
+  }
+}
+function startMicrosoftSignIn() {
+  msAuthDone = false;
+  try { localStorage.removeItem('inboxer-ms-auth'); } catch (_) {}
+  const w = 520, h = 660;
+  const x = (window.screenX || 0) + Math.max(0, (window.outerWidth - w) / 2);
+  const y = (window.screenY || 0) + Math.max(0, (window.outerHeight - h) / 2);
+  window.open('/auth/microsoft/start', 'inboxer-ms-signin', `width=${w},height=${h},left=${Math.round(x)},top=${Math.round(y)}`);
+}
+// The popup reports back two ways. Microsoft's login page sets a COOP header that severs
+// window.opener, so postMessage frequently never arrives — the localStorage signal is
+// same-origin and survives that severance, so it's the reliable path. handleMsAuth dedupes.
+window.addEventListener('message', (e) => {
+  if (e.origin === window.location.origin) handleMsAuth(e.data);
+});
+window.addEventListener('storage', (e) => {
+  if (e.key !== 'inboxer-ms-auth' || !e.newValue) return;
+  let data = null; try { data = JSON.parse(e.newValue); } catch (_) {}
+  try { localStorage.removeItem('inboxer-ms-auth'); } catch (_) {}
+  handleMsAuth(data);
+});
+
+// Pull server config: reveal the Microsoft button when OAuth is set up, and clamp the
+// scan-size input to the server's cap so the UI can't promise more than it allows.
+fetch('/api/auth/config').then((r) => r.json()).then((c) => {
+  if (!c) return;
+  if (c.microsoft) {
+    document.querySelectorAll('[data-ms-signin]').forEach((el) => { el.classList.remove('hidden'); el.hidden = false; });
+    document.querySelectorAll('[data-ms-unconfigured]').forEach((el) => { el.classList.add('hidden'); el.hidden = true; });
+  }
+  if (c.maxScan) {
+    const lim = $('limit');
+    if (lim) { lim.max = c.maxScan; if (!lim.value || Number(lim.value) > c.maxScan) lim.value = c.maxScan; }
+  }
+}).catch(() => {});
+document.querySelectorAll('#msSignIn, #wtMsSignIn').forEach((b) => b && b.addEventListener('click', startMicrosoftSignIn));
 
 async function consumeStream(stream, onEvent) {
   const reader = stream.getReader();
@@ -471,9 +550,11 @@ $('massUnsub').addEventListener('click', async () => {
   $('progressBar').style.width = '4%';
   try {
     const res = await fetch('/api/unsubscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...creds, demo: isDemo, targets }) });
+    if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Could not start unsubscribing.'); }
     let result = null;
     await consumeStream(res.body, (evt) => {
-      if (evt.type === 'progress') {
+      if (evt.type === 'auth') { creds.msToken = evt.sessionToken; }
+      else if (evt.type === 'progress') {
         $('progressBar').style.width = Math.min(99, Math.round((evt.done / Math.max(1, evt.total)) * 100)) + '%';
         $('scanStatus').textContent = `Unsubscribed from ${evt.done} of ${evt.total} — ${escapeHtml(evt.sender)}`;
       } else if (evt.type === 'done') { $('progressBar').style.width = '100%'; result = evt; }
@@ -505,9 +586,11 @@ $('confirmApply').addEventListener('click', async () => {
   $('scanStatus').textContent = 'Creating folders…'; $('progressBar').style.width = '4%';
   try {
     const res = await fetch('/api/apply', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...creds, demo: isDemo, parent, plan: groups }) });
+    if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Could not start sorting.'); }
     let result = null;
     await consumeStream(res.body, (evt) => {
-      if (evt.type === 'progress') {
+      if (evt.type === 'auth') { creds.msToken = evt.sessionToken; }
+      else if (evt.type === 'progress') {
         $('progressBar').style.width = Math.min(99, Math.round((evt.moved / Math.max(1, evt.totalToMove)) * 100)) + '%';
         $('scanStatus').textContent = `Filing into “${escapeHtml(evt.folder)}” — ${evt.moved.toLocaleString()} of ${evt.totalToMove.toLocaleString()}…`;
       } else if (evt.type === 'done') { $('progressBar').style.width = '100%'; result = evt; }
@@ -671,6 +754,7 @@ async function runBulk(action) {
     const res = await fetch('/api/organise', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...creds, demo: isDemo, action, uids, folder }) });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Action failed');
+    if (data.sessionToken) creds.msToken = data.sessionToken;
     if (action === 'move') {
       allEmails = allEmails.filter((e) => !uids.includes(e.uid));
       renderSummaryInto('summary', computeStats(allEmails)); renderSidebar();

@@ -34,6 +34,7 @@
         <p class="hero-why">It's <b>free</b> and <em>private by design</em>: no ads, no subscription, and your mail
            is never sold, stored or sent anywhere — only read to sort it, then forgotten. The
            folder structure it builds keeps your inbox organised long after the first clean-up.</p>
+        <p class="free-note">🎓 <b>Why is this cool service free?</b> Because I built it to learn about coding and AI tools as part of my MBA.</p>
         <div class="hero-cta">
           <button class="btn primary lg" id="heroDemo">▶ Try the live demo</button>
           <button class="btn outline lg" id="heroConnect">Connect your inbox</button>
@@ -80,9 +81,10 @@
     <section class="how" id="how">
       <h2>How it works</h2>
       <div class="steps">
-        <div class="step"><span class="num">1</span><h3>Scan</h3><p>Connect with an app password — or explore the live demo. InBoxer reads your whole inbox.</p></div>
-        <div class="step"><span class="num">2</span><h3>Review the plan</h3><p>See the proposed folders, the lists to unsubscribe from, and the junk to clear. Tweak anything.</p></div>
-        <div class="step"><span class="num">3</span><h3>Confirm &amp; sort</h3><p>InBoxer creates the folders in your inbox and files everything away. Permanent, and reversible by you.</p></div>
+        <div class="step"><span class="num">1</span><h3>Prepare</h3><p>Get a temporary-use app password from your email provider for secure access — quick to create, and you can revoke it anytime.</p><button class="btn outline sm step-cta" id="howGuide">🔑 App password guide</button></div>
+        <div class="step"><span class="num">2</span><h3>Scan</h3><p>Connect with your app password — or explore the live demo. InBoxer reads your whole inbox.</p></div>
+        <div class="step"><span class="num">3</span><h3>Review the plan</h3><p>See the proposed folders, the lists to unsubscribe from, and the junk to clear. Tweak anything.</p></div>
+        <div class="step"><span class="num">4</span><h3>Confirm &amp; sort</h3><p>InBoxer creates the folders in your inbox and files everything away. Permanent, and reversible by you.</p></div>
       </div>
       <div class="how-cta"><button class="btn primary lg" id="howDemo">▶ See it in action</button></div>
     </section>
@@ -170,6 +172,7 @@ function exitToLanding() {
           </div>
 
         </div>
+        <p class="proof-repo">Want the whole picture? <a href="https://github.com/tjc16/InBoxer" target="_blank" rel="noopener">Browse the full source on GitHub ↗</a></p>
       </div>
     </section>
 
@@ -180,12 +183,187 @@ function exitToLanding() {
     </footer>
   </div>
 
+  <!-- ===================== APP-PASSWORD WALKTHROUGH ===================== -->
+  <div id="walkthrough" class="view hidden">
+    <header class="topbar">
+      <a class="logo" href="#" id="wtHome"><span class="logo-mark">🥊</span><span class="logo-word">In<b>Boxer</b></span></a>
+      <div class="topbar-actions">
+        <button class="btn ghost sm donate" data-donate>♥ Donate</button>
+        <button id="wtBack" class="btn primary sm">← Back</button>
+      </div>
+    </header>
+
+    <div class="wt-wrap">
+      <div class="wt-head">
+        <span class="pill">🔑 Secure access in a couple of minutes</span>
+        <h1>How to get an app&nbsp;password</h1>
+        <p class="wt-lead">Most providers (Gmail, Outlook, Yahoo, iCloud…) won't let an app sign in with your
+          normal password once 2-factor is on. Instead you create a separate, single-purpose
+          <b>app password</b> — a one-off code you paste into InBoxer.</p>
+      </div>
+
+      <div class="wt-why">
+        <div class="wt-why-item"><span class="wt-why-ic">🛡️</span><div><b>Safer than your real password</b><span>It only grants mail access — your account login stays private.</span></div></div>
+        <div class="wt-why-item"><span class="wt-why-ic">↩️</span><div><b>Revoke it anytime</b><span>Delete the app password in your provider's settings and it stops working instantly.</span></div></div>
+        <div class="wt-why-item"><span class="wt-why-ic">🗝️</span><div><b>Nothing is stored</b><span>InBoxer holds it in memory for the session only, then forgets it.</span></div></div>
+      </div>
+
+      <p class="wt-pick">Pick your email provider for step-by-step instructions:</p>
+
+      <!-- Gmail -->
+      <details class="prov">
+        <summary><span class="prov-ic">📨</span><span class="prov-name">Gmail / Google Workspace</span><span class="prov-host">imap.gmail.com</span></summary>
+        <div class="prov-body">
+          <ol>
+            <li>Open your Google Account and go to <b>Security</b> (myaccount.google.com).</li>
+            <li>Under "How you sign in to Google", turn on <b>2-Step Verification</b> if it isn't already — app passwords only exist once it's on.</li>
+            <li>Open the <b>App passwords</b> page using the button below. You may be asked to sign in again.</li>
+            <li>Type a name like <i>InBoxer</i> and click <b>Create</b>.</li>
+            <li>Google shows a <b>16-character code</b>. Copy it (the spaces don't matter) and paste it into InBoxer's password field.</li>
+          </ol>
+          <a class="btn primary sm" href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">Open Gmail app passwords ↗</a>
+          <p class="prov-tip">Don't see "App passwords"? Make sure 2-Step Verification is on first. Work/school accounts may have it disabled by an admin.</p>
+        </div>
+      </details>
+
+      <!-- Outlook -->
+      <details class="prov">
+        <summary><span class="prov-ic">📧</span><span class="prov-name">Outlook / Hotmail / Live</span><span class="prov-host">Sign in with Microsoft</span></summary>
+        <div class="prov-body">
+          <p class="prov-note">Microsoft turned off password sign-in (including app passwords) for personal Outlook, Hotmail and Live accounts in 2026. There's <b>no password or app password to create</b> — you sign in directly with Microsoft, who asks you to approve InBoxer's access.</p>
+          <ol>
+            <li>Click <b>Sign in with Microsoft</b> below (or on the connect screen).</li>
+            <li>A Microsoft window opens — sign in and complete your 2-factor prompt as usual.</li>
+            <li>Review what InBoxer is asking for (read your mail, organise folders) and click <b>Accept</b>.</li>
+            <li>The window closes and InBoxer starts scanning automatically — no password needed.</li>
+          </ol>
+          <button type="button" class="btn ms-btn hidden" id="wtMsSignIn" data-ms-signin>
+            <svg class="ms-logo" viewBox="0 0 21 21" aria-hidden="true"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
+            Sign in with Microsoft
+          </button>
+          <p class="prov-tip" data-ms-unconfigured>You can sign in with Microsoft from the <b>Connect inbox</b> screen. (Work/school accounts may need an administrator to approve access.)</p>
+        </div>
+      </details>
+
+      <!-- Yahoo / AOL -->
+      <details class="prov">
+        <summary><span class="prov-ic">💌</span><span class="prov-name">Yahoo &amp; AOL Mail</span><span class="prov-host">imap.mail.yahoo.com</span></summary>
+        <div class="prov-body">
+          <ol>
+            <li>Sign in and open <b>Account security</b> (login.yahoo.com/account/security — for AOL use login.aol.com/account/security).</li>
+            <li>Turn on <b>Two-step verification</b> if needed.</li>
+            <li>Click <b>Generate app password</b> (or "Manage app passwords").</li>
+            <li>Choose "Other app", name it <i>InBoxer</i>, then click <b>Generate</b>.</li>
+            <li>Copy the password shown and paste it into InBoxer.</li>
+          </ol>
+          <a class="btn primary sm" href="https://login.yahoo.com/account/security/app-passwords" target="_blank" rel="noopener">Open Yahoo app passwords ↗</a>
+          <p class="prov-tip">AOL works the same way at <i>login.aol.com</i>. Its IMAP host is <code>imap.aol.com</code>.</p>
+        </div>
+      </details>
+
+      <!-- iCloud -->
+      <details class="prov">
+        <summary><span class="prov-ic">🍏</span><span class="prov-name">iCloud / Apple Mail</span><span class="prov-host">imap.mail.me.com</span></summary>
+        <div class="prov-body">
+          <ol>
+            <li>Sign in at <b>account.apple.com</b> with your Apple ID.</li>
+            <li>In <b>Sign-In and Security</b>, make sure <b>Two-Factor Authentication</b> is on — it's required.</li>
+            <li>Select <b>App-Specific Passwords</b>, then the <b>"+"</b> to generate one.</li>
+            <li>Name it <i>InBoxer</i> and confirm with your Apple ID password.</li>
+            <li>Copy the password (format <code>xxxx-xxxx-xxxx-xxxx</code>) and paste it into InBoxer.</li>
+          </ol>
+          <a class="btn primary sm" href="https://account.apple.com" target="_blank" rel="noopener">Open Apple ID settings ↗</a>
+        </div>
+      </details>
+
+      <!-- Telstra Bigpond -->
+      <details class="prov">
+        <summary><span class="prov-ic">🦘</span><span class="prov-name">Telstra Bigpond</span><span class="prov-host">imap.telstra.com</span></summary>
+        <div class="prov-body">
+          <p class="prov-note">Bigpond works a little differently — it doesn't issue Google-style app passwords. You sign in with your email address and your dedicated <b>email password</b> (not your Telstra ID login).</p>
+          <ol>
+            <li>Sign in to <b>My Telstra</b> (telstra.com.au) or the Telstra Mail webmail.</li>
+            <li>Make sure you know your mailbox's <b>email password</b>. If you only have a Telstra ID, set or reset the dedicated email password in your email settings.</li>
+            <li>Bigpond isn't auto-detected, so in InBoxer open <b>Advanced</b> and enter the host manually: <code>imap.telstra.com</code>, port <code>993</code>.</li>
+            <li>Use your email address and that email password to connect.</li>
+          </ol>
+          <a class="btn primary sm" href="https://www.telstra.com.au/support/email" target="_blank" rel="noopener">Telstra email help ↗</a>
+        </div>
+      </details>
+
+      <!-- Fastmail -->
+      <details class="prov">
+        <summary><span class="prov-ic">⚡</span><span class="prov-name">Fastmail</span><span class="prov-host">imap.fastmail.com</span></summary>
+        <div class="prov-body">
+          <ol>
+            <li>Sign in and go to <b>Settings → Privacy &amp; Security</b>.</li>
+            <li>Find <b>App passwords</b> (sometimes under "Connected apps &amp; app passwords").</li>
+            <li>Click <b>New app password</b>, name it <i>InBoxer</i>, and set access to <b>Mail (IMAP/SMTP)</b>.</li>
+            <li>Copy the generated password and paste it into InBoxer.</li>
+          </ol>
+          <a class="btn primary sm" href="https://app.fastmail.com/settings/security/devices" target="_blank" rel="noopener">Open Fastmail app passwords ↗</a>
+        </div>
+      </details>
+
+      <!-- Zoho -->
+      <details class="prov">
+        <summary><span class="prov-ic">📬</span><span class="prov-name">Zoho Mail</span><span class="prov-host">imap.zoho.com</span></summary>
+        <div class="prov-body">
+          <ol>
+            <li>Sign in at <b>accounts.zoho.com</b>.</li>
+            <li>Go to <b>Security → App Passwords</b> (Two-Factor Authentication must be on).</li>
+            <li>Click <b>Generate New Password</b> and name it <i>InBoxer</i>.</li>
+            <li>Copy the password and paste it into InBoxer.</li>
+            <li>In Zoho Mail, make sure <b>IMAP access</b> is enabled under Settings → Mail Accounts → IMAP.</li>
+          </ol>
+          <a class="btn primary sm" href="https://accounts.zoho.com/home#security/device" target="_blank" rel="noopener">Open Zoho app passwords ↗</a>
+        </div>
+      </details>
+
+      <!-- GMX -->
+      <details class="prov">
+        <summary><span class="prov-ic">📮</span><span class="prov-name">GMX</span><span class="prov-host">imap.gmx.com</span></summary>
+        <div class="prov-body">
+          <p class="prov-note">GMX doesn't issue app passwords — instead you switch on IMAP access, then connect with your normal password.</p>
+          <ol>
+            <li>Sign in to GMX webmail.</li>
+            <li>Go to <b>Settings → POP3 &amp; IMAP</b>.</li>
+            <li>Tick <b>Enable access to this account via POP3 and IMAP</b>, and save.</li>
+            <li>Connect InBoxer using your <b>normal GMX password</b>.</li>
+          </ol>
+          <a class="btn primary sm" href="https://www.gmx.com" target="_blank" rel="noopener">Open GMX ↗</a>
+        </div>
+      </details>
+
+      <div class="wt-other">
+        <h3>Another provider?</h3>
+        <p>Most other IMAP providers either accept your normal password or have an "app password" /
+          "third-party app access" setting — search <i>"&lt;your provider&gt; IMAP app password"</i>.
+          If InBoxer can't auto-detect your provider, open <b>Advanced</b> on the connect screen and
+          enter the IMAP host and port (usually <code>993</code>) yourself.</p>
+      </div>
+
+      <div class="wt-foot">
+        <button class="btn primary lg" id="wtConnect">I've got my app password — connect inbox →</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===================== CONNECT MODAL ===================== -->
   <div id="connectModal" class="modal-overlay hidden">
     <div class="modal card">
       <button class="modal-close" id="modalClose">✕</button>
       <h2>Connect your inbox</h2>
       <p class="subtitle">Works with any IMAP provider. Nothing is stored — your details are used only to connect, for this session.</p>
+      <div class="ms-block hidden" data-ms-signin>
+        <button type="button" class="btn ms-btn full" id="msSignIn">
+          <svg class="ms-logo" viewBox="0 0 21 21" aria-hidden="true"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
+          Sign in with Microsoft
+        </button>
+        <p class="ms-note">Outlook, Hotmail &amp; Live accounts must sign in here — Microsoft no longer accepts passwords.</p>
+        <div class="or-divider"><span>or connect another provider with a password</span></div>
+      </div>
+      <button type="button" class="btn outline full connect-guide" id="connectGuide">🔑 How to get an app password — step-by-step guide</button>
       <form id="connectForm">
         <label>Email address<input type="email" id="email" placeholder="you@example.com" autocomplete="username" required /></label>
         <label>Password / app password<input type="password" id="password" placeholder="App password recommended" autocomplete="current-password" required /></label>
@@ -201,7 +379,7 @@ function exitToLanding() {
         <button type="submit" class="btn primary" id="connectBtn">Scan my inbox</button>
         <p class="error hidden" id="connectError"></p>
       </form>
-      <div class="hint"><strong>Tip:</strong> Gmail, Outlook &amp; Yahoo block normal passwords. With 2-factor on, create an <em>app password</em> in your account security settings and paste it here.</div>
+      <div class="hint"><strong>Tip:</strong> Gmail, Yahoo &amp; iCloud block normal passwords — with 2-factor on, create an <em>app password</em> in your account security settings and paste it here. <strong>Outlook/Hotmail</strong> users: use the <em>Sign in with Microsoft</em> button above instead.</div>
       <div class="modal-demo">No account handy? <button class="linkbtn" id="modalDemo">Explore the live demo →</button></div>
     </div>
   </div>
